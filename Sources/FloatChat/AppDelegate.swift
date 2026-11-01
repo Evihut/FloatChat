@@ -6,7 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: FloatingPanel!
     private var statusItem: NSStatusItem!
     private var hotKey: HotKey?
-    private var hotKeyLabel = "未注册"
+    private var hotKeyLabel = ""
     private var pasteMonitor: Any?
     let chat = ChatModel()
 
@@ -19,6 +19,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         panel = FloatingPanel(rootView: ChatView(model: chat))
         panel.level = chat.settings.alwaysOnTop ? .floating : .normal
+
+        if let out = ProcessInfo.processInfo.environment["FLOATCHAT_SNAPSHOT"] {
+            Snapshot.render(panel: panel, chat: chat, to: URL(fileURLWithPath: out))
+            return
+        }
 
         setupStatusItem()
         registerHotKey()
@@ -41,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         chat.focusInput &+= 1
     }
 
-    // MARK: - Hotkey: ⌥Space，被占用时退到 ⌃⌥Space
+    // MARK: - Hotkey: ⌥Space, falling back to ⌃⌥Space when taken
 
     private func registerHotKey() {
         let space = UInt32(kVK_Space)
@@ -51,6 +56,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if let hk = HotKey(keyCode: space, modifiers: UInt32(optionKey | controlKey), action: { [weak self] in self?.togglePanel() }) {
             hotKey = hk
             hotKeyLabel = "⌃⌥Space"
+        } else {
+            hotKeyLabel = String(localized: "unavailable")
         }
         chat.hotKeyLabel = hotKeyLabel
         rebuildStatusMenu()
@@ -67,17 +74,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildStatusMenu() {
         guard let statusItem else { return }
         let menu = NSMenu()
-        menu.addItem(withTitle: "显示 / 隐藏  (\(hotKeyLabel))", action: #selector(menuToggle), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "新对话", action: #selector(menuNewChat), keyEquivalent: "").target = self
+        menu.addItem(withTitle: String(localized: "Show / Hide  (\(hotKeyLabel))"), action: #selector(menuToggle), keyEquivalent: "").target = self
+        menu.addItem(withTitle: String(localized: "New Chat"), action: #selector(menuNewChat), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "退出 FloatChat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: String(localized: "Quit FloatChat"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
     }
 
     @objc private func menuToggle() { togglePanel() }
     @objc private func menuNewChat() { chat.newChat(); showPanel() }
 
-    // 菜单栏 App 没有主菜单时 ⌘C/⌘V/⌘A 不工作，这里补一个隐藏的 Edit 菜单
+    // Menu-bar-only apps have no main menu, so ⌘C/⌘V/⌘A would not work. Add a hidden Edit menu.
     private func installMainMenu() {
         let main = NSMenu()
         let editItem = NSMenuItem()
@@ -94,7 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = main
     }
 
-    // 剪贴板里是图片时，⌘V 直接作为附件
+    // ⌘V with an image on the clipboard attaches it instead of pasting text
     private func installPasteMonitor() {
         pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self,

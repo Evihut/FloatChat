@@ -1,12 +1,12 @@
 import Carbon.HIToolbox
 
-/// 系统级全局快捷键（Carbon RegisterEventHotKey，不需要辅助功能权限）。
+/// System-wide hotkey via Carbon RegisterEventHotKey (no Accessibility permission needed).
 final class HotKey {
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
     private let action: () -> Void
 
-    /// 组合键已被其他 App 占用时返回 nil。
+    /// Returns nil when another app already owns the combination.
     init?(keyCode: UInt32, modifiers: UInt32, action: @escaping () -> Void) {
         self.action = action
 

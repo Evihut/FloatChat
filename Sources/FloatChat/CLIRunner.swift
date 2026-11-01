@@ -2,14 +2,14 @@ import Foundation
 
 enum AgentEvent {
     case session(String)
-    case textDelta(String)  // 追加到当前回复
-    case text(String)       // 一条完整回复
-    case tool(String)       // 工具调用提示
+    case textDelta(String)  // appended to the current reply
+    case text(String)       // a complete reply
+    case tool(String)       // a tool call notice
     case error(String)
     case done
 }
 
-/// 以子进程运行 `claude -p` 或 `codex exec`，逐行解析 JSONL 输出并回调到主线程。
+/// Runs `claude -p` or `codex exec` as a child process and parses its JSONL output, calling back on the main thread.
 final class CLIRunner {
     struct Config {
         var backend: BackendKind
@@ -39,7 +39,7 @@ final class CLIRunner {
     func start() {
         let name = config.backend == .claude ? "claude" : "codex"
         guard let exe = ShellEnv.which(name) else {
-            emit(.error("找不到 `\(name)` 命令。请先安装并在终端里登录一次。"))
+            emit(.error(String(localized: "Could not find the `\(name)` command. Install it and sign in once from Terminal.")))
             emit(.done)
             return
         }
@@ -79,11 +79,11 @@ final class CLIRunner {
         do {
             try process.run()
         } catch {
-            emit(.error("启动 \(name) 失败：\(error.localizedDescription)"))
+            emit(.error(String(localized: "Failed to start \(name): \(error.localizedDescription)")))
             emit(.done)
             return
         }
-        // prompt 走 stdin，避免和可变参数选项混在一起
+        // Send the prompt on stdin so it never collides with variadic options
         stdin.fileHandleForWriting.write(fullPrompt().data(using: .utf8)!)
         try? stdin.fileHandleForWriting.close()
     }
@@ -96,10 +96,10 @@ final class CLIRunner {
     // MARK: - Arguments
 
     private func fullPrompt() -> String {
-        // Claude 没有图片参数，把图片路径写进 prompt，让它用 Read 工具看图
+        // Claude has no image flag; list the paths and let it open them with the Read tool
         guard config.backend == .claude, !config.images.isEmpty else { return config.prompt }
         let list = config.images.map { "- \($0.path)" }.joined(separator: "\n")
-        return config.prompt + "\n\n（附图，请用 Read 工具查看）\n" + list
+        return config.prompt + "\n\nAttached images (open them with the Read tool):\n" + list
     }
 
     private func claudeArgs() -> [String] {
@@ -123,7 +123,7 @@ final class CLIRunner {
         if !config.model.isEmpty { a += ["-m", config.model] }
         for img in config.images { a += ["-i", img.path] }
         if let id = config.sessionID { a += [id] }
-        a += ["-"]  // 从 stdin 读 prompt
+        a += ["-"]  // read the prompt from stdin
         return a
     }
 
@@ -158,7 +158,7 @@ final class CLIRunner {
             if let id = o["session_id"] as? String { emit(.session(id)) }
             let result = o["result"] as? String ?? ""
             if o["is_error"] as? Bool == true {
-                emit(.error(result.isEmpty ? "Claude 返回错误" : result))
+                emit(.error(result.isEmpty ? String(localized: "Claude returned an error") : result))
             } else if !receivedText, !result.isEmpty {
                 emit(.text(result))
             }
@@ -184,20 +184,20 @@ final class CLIRunner {
                 if let t = item["text"] as? String { receivedText = true; emit(.text(t)) }
             case "file_change":
                 let paths = (item["changes"] as? [[String: Any]])?.compactMap { $0["path"] as? String } ?? []
-                emit(.tool("编辑 " + paths.map(abbreviated).joined(separator: ", ")))
+                emit(.tool(String(localized: "Edit") + " " + paths.map(abbreviated).joined(separator: ", ")))
             case "web_search":
-                emit(.tool("搜索 " + (item["query"] as? String ?? "")))
+                emit(.tool(String(localized: "Search") + " " + (item["query"] as? String ?? "")))
             case "mcp_tool_call":
                 emit(.tool("\(item["server"] as? String ?? "mcp").\(item["tool"] as? String ?? "")"))
             default:
                 break
             }
         case "turn.failed":
-            let msg = (o["error"] as? [String: Any])?["message"] as? String ?? "Codex 运行失败"
+            let msg = (o["error"] as? [String: Any])?["message"] as? String ?? String(localized: "Codex run failed")
             emit(.error(Self.unwrapErrorMessage(msg)))
             receivedText = true
         case "error":
-            // 和 turn.failed 内容重复，只在没有 turn.failed 时有用；记下来最后再判断
+            // Duplicates turn.failed; only useful when that never arrives, so keep it for the final check
             if let msg = o["message"] as? String { stderrText += "\n" + Self.unwrapErrorMessage(msg) }
         default:
             break
@@ -208,10 +208,10 @@ final class CLIRunner {
         guard !finished else { return }
         finished = true
         if stopped {
-            emit(.tool("已停止"))
+            emit(.tool(String(localized: "Stopped")))
         } else if status != 0 && !receivedText {
             let tail = stderrText.split(separator: "\n").suffix(6).joined(separator: "\n")
-            emit(.error(tail.isEmpty ? "进程退出码 \(status)" : tail))
+            emit(.error(tail.isEmpty ? String(localized: "Process exited with code \(status)") : tail))
         }
         emit(.done)
     }
@@ -226,7 +226,7 @@ final class CLIRunner {
         return name
     }
 
-    /// Codex 的错误常是一段嵌套 JSON，取出最里面的 message。
+    /// Codex errors are often nested JSON; pull out the innermost message.
     static func unwrapErrorMessage(_ s: String) -> String {
         guard let data = s.data(using: .utf8),
               let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return s }
@@ -235,7 +235,7 @@ final class CLIRunner {
     }
 }
 
-/// 从 Finder 启动的 App 拿不到终端里的 PATH，这里从登录 shell 取一次。
+/// Apps launched from Finder don't get the Terminal PATH, so read it once from a login shell.
 enum ShellEnv {
     static let environment: [String: String] = {
         var env = ProcessInfo.processInfo.environment

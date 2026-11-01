@@ -1,25 +1,64 @@
+<div align="center">
+
+<img src="docs/icon.png" width="128" alt="FloatChat icon">
+
 # FloatChat
 
-A tiny always-on-top macOS chat window for the AI agent CLIs you already use: **Claude Code** and **OpenAI Codex**.
+**Claude Code and Codex, one keystroke away.**
 
-macOS 上的悬浮置顶小窗，背后直接调用你本机的 `claude` / `codex` 命令行。读文件、跑命令、搜索、看图这些工具调用都由 CLI 完成，用的是你现有的订阅，不需要另外的 API Key。
+A tiny, native macOS window that floats above everything and talks to the AI agents you already pay for.
 
-- **很小**：原生 Swift，约 1.8 MB（同时支持 Apple Silicon 和 Intel），不在 Dock 显示
-- **随叫随到**：`⌥Space` 呼出/隐藏，所有桌面和全屏 App 上都能显示，点它不会抢走当前 App 的焦点
-- **一个对话，两个后端**：对话中途在 Claude 和 Codex 之间切换，之前的聊天记录会自动带过去
-- **对话历史**：自动保存，可以搜索，点开就能接着聊（CLI 的会话也会接上）
-- **图片**：`⌘V` 粘贴、拖进窗口、选文件，或者一键框选截图
-- **权限开关**：默认只读（只能读文件、搜索），打开"完全权限"才允许改文件、执行命令
+[![Release](https://img.shields.io/github/v/release/Evihut/FloatChat?style=flat-square&color=6c47ff)](https://github.com/Evihut/FloatChat/releases/latest)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-111?style=flat-square&logo=apple)](#install)
+[![Swift](https://img.shields.io/badge/Swift-SwiftUI-F05138?style=flat-square&logo=swift&logoColor=white)](Sources/FloatChat)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-## 安装
+**English** · [简体中文](README.zh-CN.md)
 
-**下载**：从 [Releases](../../releases) 下载 `FloatChat.zip`，解压后把 `FloatChat.app` 拖进"应用程序"。这个 App 没有经过 Apple 公证，第一次打开前要在终端运行：
+<br>
+
+<img src="docs/banner.jpg" alt="FloatChat floating over the desktop, answering a question with Claude Code">
+
+</div>
+
+## Why FloatChat
+
+Agent CLIs like **Claude Code** and **Codex** can read your files, run commands and look at images, but they live in a terminal tab. Chat apps float nicely, but the model behind them can't touch your machine.
+
+FloatChat puts the agent in a window you can summon from anywhere with `⌥Space`, without leaving the app you're in. No API keys, no extra subscription: it drives the `claude` and `codex` commands you've already signed in to.
+
+## Features
+
+|  |  |
+| --- | --- |
+| **⌥Space from anywhere** | Shows over every Space and full-screen app. Clicking it never steals focus from the app you're working in. |
+| **Real agent tools** | Reads files, runs commands, searches the web and views images, all through the CLI's own toolset. |
+| **Two backends, one thread** | Switch between Claude Code and Codex mid-conversation. FloatChat hands the new backend the transcript so far. |
+| **History that resumes** | Every chat is saved and searchable. Reopen one and the CLI session picks up where it left off. |
+| **Images in a second** | Paste with `⌘V`, drag a file in, or grab part of the screen with the built-in screenshot button. |
+| **Safe by default** | Starts read-only (read and search). Flip to **Full access** only when you want it to edit files or run commands. |
+| **Tiny and native** | Pure Swift and SwiftUI. About 3 MB, universal (Apple Silicon and Intel), no Electron, no Dock icon. |
+| **English and 简体中文** | The interface follows your Mac's language. |
+
+<div align="center">
+<img src="docs/light-dark.jpg" alt="FloatChat in light and dark mode">
+</div>
+
+## Install
+
+### Download
+
+1. Grab **FloatChat.zip** from the [latest release](https://github.com/Evihut/FloatChat/releases/latest).
+2. Unzip it and drag **FloatChat.app** into **Applications**.
+3. FloatChat isn't notarized by Apple yet, so clear the download flag once before opening it:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/FloatChat.app
 ```
 
-**从源码构建**（需要 Xcode 或 Command Line Tools）：
+### Build from source
+
+Requires Xcode or the Command Line Tools.
 
 ```bash
 git clone https://github.com/Evihut/FloatChat.git
@@ -28,46 +67,66 @@ cd FloatChat
 open build/FloatChat.app
 ```
 
-## 前提
+## Before you start
 
-先确认 CLI 在终端里能正常用：
+FloatChat drives your existing CLIs, so make sure at least one of them works in Terminal:
 
 ```bash
 claude -p "hi"
+```
+
+```bash
 codex exec "hi"
 ```
 
-FloatChat 只负责把它们的输出流显示出来，登录、模型、MCP 等配置都沿用 CLI 自己的。
+Sign-in, models, MCP servers and other settings all come from the CLI's own configuration.
 
-## 用法
+## Using it
 
-| 操作 | 方式 |
+| Action | How |
 | --- | --- |
-| 呼出 / 隐藏 | `⌥Space`（被别的 App 占用时自动改用 `⌃⌥Space`，菜单栏图标里能看到） |
-| 发送 / 隐藏 | `Enter` / `Esc` |
-| 附图 | `⌘V`、拖入、`+` 按钮、相机按钮截图 |
-| 切换后端 | 顶栏下拉菜单 |
-| 历史 / 新对话 / 置顶 / 设置 | 顶栏图标 |
+| Show or hide | `⌥Space` (falls back to `⌃⌥Space` if another app owns it; the menu bar icon shows which) |
+| Send / hide | `Enter` / `Esc` |
+| Attach images | `⌘V`, drag and drop, the `+` button, or the screenshot button |
+| Switch backend | The menu at the top of the window |
+| History, new chat, keep on top, settings | The icons at the top right |
 
-第一次截图时，需要在 系统设置 → 隐私与安全性 → 录屏 里允许 FloatChat。
+Settings let you pick the working folder the CLI runs in and override the model for each backend. The first screenshot asks for Screen Recording permission in **System Settings → Privacy & Security**.
 
-设置里可以改工作目录（CLI 在哪个文件夹下运行），也可以为每个后端单独指定模型。
+## How it works
 
-## 工作原理
+```mermaid
+flowchart LR
+    A["FloatChat window"] -- "prompt on stdin" --> B["claude -p<br/>or codex exec"]
+    B -- "JSON event stream" --> A
+    B <--> C["Files, shell,<br/>web, images"]
+```
 
-每条消息启动一次 CLI 子进程，FloatChat 读取它输出的 JSON 事件流：
+Each message starts the CLI as a child process and streams its JSON events into the window:
 
-- Claude：`claude -p --output-format stream-json --include-partial-messages [--resume <id>]`
-- Codex：`codex exec [resume <id>] --json -`
+- **Claude Code:** `claude -p --output-format stream-json --include-partial-messages [--resume <id>]`
+- **Codex:** `codex exec [resume <id>] --json -`
 
-对话保存在 `~/Library/Application Support/FloatChat/conversations/`。
+Conversations are stored as JSON in `~/Library/Application Support/FloatChat/conversations/`. Nothing leaves your Mac except what the CLIs themselves send.
 
-## 局限
+## Limitations
 
-- 只支持 macOS 14 及以上
-- 每条消息都要重新启动一次 CLI，第一个字出来前会等几秒
-- Markdown 只渲染行内格式（粗体、代码、链接），代码块按原样显示
+- macOS 14 Sonoma or later.
+- Every message starts a fresh CLI process, so expect a few seconds before the first word.
+- Markdown is rendered inline (bold, code, links); fenced code blocks show as plain text.
+
+## Contributing
+
+Issues and pull requests are welcome. The whole app is about 1,200 lines of Swift in [`Sources/FloatChat`](Sources/FloatChat). To regenerate the icon and the screenshots in this README:
+
+```bash
+swift Scripts/make-icon.swift
+```
+
+```bash
+./Scripts/screenshots.sh
+```
 
 ## License
 
-MIT
+[MIT](LICENSE)

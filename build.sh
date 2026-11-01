@@ -1,5 +1,5 @@
 #!/bin/zsh
-# 编译 release 版并打包成 build/FloatChat.app
+# Builds a universal release binary and packages it as build/FloatChat.app
 set -e
 cd "$(dirname "$0")"
 swift build -c release --arch arm64 --arch x86_64
@@ -8,6 +8,7 @@ APP=build/FloatChat.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/FloatChat" "$APP/Contents/MacOS/FloatChat"
+cp -R Resources/ "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -15,11 +16,15 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <dict>
   <key>CFBundleName</key><string>FloatChat</string>
   <key>CFBundleDisplayName</key><string>FloatChat</string>
-  <key>CFBundleIdentifier</key><string>local.floatchat</string>
+  <key>CFBundleIdentifier</key><string>io.github.evihut.FloatChat</string>
   <key>CFBundleExecutable</key><string>FloatChat</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>0.2.0</string>
+  <key>CFBundleVersion</key><string>2</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string></array>
+  <key>NSHumanReadableCopyright</key><string>MIT License</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 不抢焦点的悬浮小窗：点它不会让别的 App 失去激活状态，所有桌面/全屏 App 上都能显示。
+/// A floating panel that never steals activation from the app you're in, shown on every Space and over full-screen apps.
 final class FloatingPanel: NSPanel {
     init<Content: View>(rootView: Content) {
         super.init(
@@ -35,7 +35,7 @@ final class FloatingPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
-    // Esc 隐藏
+    // Esc hides the panel
     override func cancelOperation(_ sender: Any?) { orderOut(nil) }
 
     private func positionTopRight() {

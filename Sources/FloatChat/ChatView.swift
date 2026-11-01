@@ -4,14 +4,14 @@ import SwiftUI
 struct ChatView: View {
     @ObservedObject var model: ChatModel
     @ObservedObject var settings: AppSettings
+    @FocusState private var inputFocused: Bool
+    @State private var showSettings = false
+    @State private var showHistory = false
 
     init(model: ChatModel) {
         self.model = model
         self.settings = model.settings
     }
-    @FocusState private var inputFocused: Bool
-    @State private var showSettings = false
-    @State private var showHistory = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,9 +37,9 @@ struct ChatView: View {
 
     private var header: some View {
         HStack(spacing: 6) {
-            Spacer().frame(width: 60)  // 给左上角关闭按钮留位置
+            Spacer().frame(width: 60)  // room for the close button
             Picker("", selection: $settings.backend) {
-                ForEach(BackendKind.allCases) { Text($0.title).tag($0) }
+                ForEach(BackendKind.allCases) { Text(verbatim: $0.title).tag($0) }
             }
             .pickerStyle(.menu)
             .labelsHidden()
@@ -48,18 +48,18 @@ struct ChatView: View {
 
             Spacer()
 
-            iconButton(model.settings.alwaysOnTop ? "pin.fill" : "pin", help: "置顶") {
-                model.settings.alwaysOnTop.toggle()
-                model.setPinned(model.settings.alwaysOnTop)
+            iconButton(settings.alwaysOnTop ? "pin.fill" : "pin", help: "Keep on top") {
+                settings.alwaysOnTop.toggle()
+                model.setPinned(settings.alwaysOnTop)
             }
-            iconButton("clock.arrow.circlepath", help: "对话历史") { showHistory.toggle() }
+            iconButton("clock.arrow.circlepath", help: "History") { showHistory.toggle() }
                 .popover(isPresented: $showHistory, arrowEdge: .bottom) {
                     HistoryView(model: model) { showHistory = false }
                 }
-            iconButton("square.and.pencil", help: "新对话") { model.newChat() }
-            iconButton("gearshape", help: "设置") { showSettings.toggle() }
+            iconButton("square.and.pencil", help: "New chat") { model.newChat() }
+            iconButton("gearshape", help: "Settings") { showSettings.toggle() }
                 .popover(isPresented: $showSettings, arrowEdge: .bottom) {
-                    SettingsView(settings: model.settings, hotKeyLabel: model.hotKeyLabel)
+                    SettingsView(settings: settings, hotKeyLabel: model.hotKeyLabel)
                 }
         }
         .padding(.horizontal, 10)
@@ -71,7 +71,7 @@ struct ChatView: View {
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 10) {
+                LazyVStack(alignment: .leading, spacing: 12) {
                     if model.messages.isEmpty { emptyState }
                     ForEach(model.messages) { MessageRow(message: $0) }
                     if model.isRunning {
@@ -79,7 +79,7 @@ struct ChatView: View {
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
-                .padding(12)
+                .padding(14)
             }
             .onChange(of: model.messages) { proxy.scrollTo("bottom", anchor: .bottom) }
             .onChange(of: model.isRunning) { proxy.scrollTo("bottom", anchor: .bottom) }
@@ -87,14 +87,53 @@ struct ChatView: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("问点什么吧").font(.title3.weight(.semibold))
-            Text("\(model.hotKeyLabel) 呼出 / 隐藏 · Esc 隐藏 · ⌘V 粘贴图片 · 拖入图片\n当前后端：\(model.settings.backend.title)，工作目录：\(abbreviated(model.settings.workingDir))")
-                .font(.caption)
+        VStack(spacing: 14) {
+            Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                .font(.system(size: 34))
+                .foregroundStyle(LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+            Text("Ask anything")
+                .font(.title2.weight(.semibold))
+            Text(verbatim: "\(settings.backend.title) · \(abbreviated(settings.workingDir))")
+                .font(.callout)
                 .foregroundStyle(.secondary)
+
+            VStack(spacing: 6) {
+                suggestion(String(localized: "Explain this screenshot"), symbol: "camera.viewfinder") { model.captureScreen() }
+                suggestion(String(localized: "What's in this folder?"), symbol: "folder")
+                suggestion(String(localized: "Why is my build failing?"), symbol: "hammer")
+            }
+            .padding(.top, 6)
+
+            Text("\(model.hotKeyLabel) to show or hide · Esc to hide · ⌘V pastes images")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 4)
         }
-        .padding(.top, 40)
         .frame(maxWidth: .infinity)
+        .padding(.top, 36)
+    }
+
+    /// An example prompt; clicking it fills the input (or runs `action` when given).
+    private func suggestion(_ text: String, symbol: String, action: (() -> Void)? = nil) -> some View {
+        Button {
+            if let action {
+                action()
+            } else {
+                model.input = text
+                inputFocused = true
+            }
+        } label: {
+            Label { Text(verbatim: text) } icon: { Image(systemName: symbol) }
+                .frame(maxWidth: 260, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.08)))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
     }
 
     private var attachmentStrip: some View {
@@ -122,7 +161,7 @@ struct ChatView: View {
 
     private var inputBar: some View {
         VStack(spacing: 6) {
-            TextField("询问 \(model.settings.backend.title)…", text: $model.input, axis: .vertical)
+            TextField("Ask \(settings.backend.title)…", text: $model.input, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .lineLimit(1...8)
@@ -130,24 +169,24 @@ struct ChatView: View {
                 .onSubmit { model.send() }
 
             HStack(spacing: 6) {
-                iconButton("plus", help: "添加图片") { model.pickImages() }
-                iconButton("camera.viewfinder", help: "截图") { model.captureScreen() }
+                iconButton("plus", help: "Add images") { model.pickImages() }
+                iconButton("camera.viewfinder", help: "Take a screenshot") { model.captureScreen() }
                 Toggle(isOn: $settings.fullAccess) {
-                    Text(model.settings.fullAccess ? "完全权限" : "只读")
+                    Text(settings.fullAccess ? LocalizedStringKey("Full access") : "Read-only")
                         .font(.callout)
-                        .foregroundStyle(model.settings.fullAccess ? .orange : .secondary)
+                        .foregroundStyle(settings.fullAccess ? .orange : .secondary)
                 }
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .padding(.leading, 6)
-                .help("只读：只能读文件/搜索；完全权限：可以改文件、执行命令")
+                .help("Read-only: read files and search. Full access: edit files and run commands.")
                 Spacer()
                 if model.isRunning {
                     Button(action: model.stop) {
                         Image(systemName: "stop.circle.fill").font(.system(size: 30))
                     }
                     .buttonStyle(.plain)
-                    .help("停止")
+                    .help("Stop")
                 } else {
                     Button(action: model.send) {
                         Image(systemName: "arrow.up.circle.fill").font(.system(size: 30))
@@ -155,17 +194,18 @@ struct ChatView: View {
                     .buttonStyle(.plain)
                     .disabled(model.input.isEmpty && model.pendingImages.isEmpty)
                     .keyboardShortcut(.return, modifiers: .command)
+                    .help("Send")
                 }
             }
             .foregroundStyle(.secondary)
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 12).fill(.background.opacity(0.6)))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.separator))
+        .background(RoundedRectangle(cornerRadius: 14).fill(.background.opacity(0.6)))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(.separator))
         .padding(10)
     }
 
-    private func iconButton(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
+    private func iconButton(_ symbol: String, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 17, weight: .medium))
@@ -197,7 +237,7 @@ struct MessageRow: View {
                         HStack { ForEach(message.images, id: \.self) { Thumbnail(url: $0, size: 80) } }
                     }
                     if !message.text.isEmpty {
-                        Text(message.text)
+                        Text(verbatim: message.text)
                             .textSelection(.enabled)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -209,6 +249,7 @@ struct MessageRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(markdown(message.text))
                     .textSelection(.enabled)
+                    .lineSpacing(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Button {
                     NSPasteboard.general.clearContents()
@@ -218,16 +259,16 @@ struct MessageRow: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.tertiary)
-                .help("复制")
+                .help("Copy")
             }
         case .tool:
-            Label(message.text, systemImage: "wrench.and.screwdriver")
+            Label { Text(verbatim: message.text) } icon: { Image(systemName: "wrench.and.screwdriver") }
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .truncationMode(.middle)
         case .error:
-            Label(message.text, systemImage: "exclamationmark.triangle.fill")
+            Label { Text(verbatim: message.text) } icon: { Image(systemName: "exclamationmark.triangle.fill") }
                 .font(.callout)
                 .foregroundStyle(.red)
                 .textSelection(.enabled)
@@ -257,7 +298,7 @@ struct Thumbnail: View {
     }
 }
 
-/// 鼠标悬停时显示浅色圆角底，方便看清可点区域。
+/// Shows a soft rounded highlight on hover so the clickable area is obvious.
 struct HoverButtonStyle: ButtonStyle {
     @State private var hovering = false
 
@@ -288,11 +329,11 @@ struct HistoryView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            TextField("搜索对话…", text: $query)
+            TextField("Search chats…", text: $query)
                 .textFieldStyle(.roundedBorder)
                 .controlSize(.large)
             if items.isEmpty {
-                Text(model.history.isEmpty ? "还没有对话记录" : "没有匹配的对话")
+                Text(model.history.isEmpty ? LocalizedStringKey("No chats yet") : "No matching chats")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 80)
             } else {
@@ -315,11 +356,11 @@ struct HistoryView: View {
                 dismiss()
             } label: {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(c.title).lineLimit(1)
+                    Text(verbatim: c.title).lineLimit(1)
                     HStack(spacing: 6) {
                         Text(c.updatedAt, format: .relative(presentation: .named))
                         ForEach(c.sessionIDs.keys.sorted(), id: \.self) { k in
-                            Text(BackendKind(rawValue: k)?.title ?? k)
+                            Text(verbatim: BackendKind(rawValue: k)?.title ?? k)
                                 .padding(.horizontal, 5)
                                 .background(Capsule().fill(Color.primary.opacity(0.08)))
                         }
@@ -345,7 +386,7 @@ struct HistoryView: View {
             }
             .buttonStyle(HoverButtonStyle())
             .foregroundStyle(.secondary)
-            .help("删除")
+            .help("Delete")
         }
     }
 }
@@ -359,8 +400,8 @@ struct SettingsView: View {
     var body: some View {
         Form {
             HStack {
-                TextField("工作目录", text: $settings.workingDir)
-                Button("选择…") {
+                TextField("Working folder", text: $settings.workingDir)
+                Button("Choose…") {
                     let p = NSOpenPanel()
                     p.canChooseDirectories = true
                     p.canChooseFiles = false
@@ -368,10 +409,10 @@ struct SettingsView: View {
                     if p.runModal() == .OK, let url = p.url { settings.workingDir = url.path }
                 }
             }
-            TextField("Claude 模型（留空=默认）", text: $settings.claudeModel)
-            TextField("Codex 模型（留空=默认）", text: $settings.codexModel)
-            Toggle("完全权限（允许改文件、执行命令）", isOn: $settings.fullAccess)
-            Text("快捷键：\(hotKeyLabel)    窗口位置会自动记住")
+            TextField("Claude model (blank = default)", text: $settings.claudeModel)
+            TextField("Codex model (blank = default)", text: $settings.codexModel)
+            Toggle("Full access (edit files and run commands)", isOn: $settings.fullAccess)
+            Text("Hotkey: \(hotKeyLabel) · Window position is remembered")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

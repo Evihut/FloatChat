@@ -1,0 +1,56 @@
+/* Simplified Chinese */
+
+/* Header */
+"Keep on top" = "置顶";
+"History" = "对话历史";
+"New chat" = "新对话";
+"Settings" = "设置";
+
+/* Welcome */
+"Ask anything" = "问点什么吧";
+"Explain this screenshot" = "解释一下这张截图";
+"What's in this folder?" = "这个文件夹里有什么？";
+"Why is my build failing?" = "为什么我的项目编译失败？";
+"%@ to show or hide · Esc to hide · ⌘V pastes images" = "%@ 呼出或隐藏 · Esc 隐藏 · ⌘V 粘贴图片";
+
+/* Input bar */
+"Ask %@…" = "询问 %@…";
+"Add images" = "添加图片";
+"Take a screenshot" = "截图";
+"Full access" = "完全权限";
+"Read-only" = "只读";
+"Read-only: read files and search. Full access: edit files and run commands." = "只读：只能读文件和搜索。完全权限：可以改文件、执行命令。";
+"Stop" = "停止";
+"Send" = "发送";
+"Copy" = "复制";
+
+/* History */
+"Search chats…" = "搜索对话…";
+"No chats yet" = "还没有对话记录";
+"No matching chats" = "没有匹配的对话";
+"Delete" = "删除";
+
+/* Settings */
+"Working folder" = "工作目录";
+"Choose…" = "选择…";
+"Claude model (blank = default)" = "Claude 模型（留空为默认）";
+"Codex model (blank = default)" = "Codex 模型（留空为默认）";
+"Full access (edit files and run commands)" = "完全权限（允许改文件、执行命令）";
+"Hotkey: %@ · Window position is remembered" = "快捷键：%@ · 窗口位置会自动记住";
+
+/* Menu bar */
+"unavailable" = "不可用";
+"Show / Hide  (%@)" = "显示 / 隐藏  (%@)";
+"New Chat" = "新对话";
+"Quit FloatChat" = "退出 FloatChat";
+
+/* Messages */
+"Image" = "图片";
+"Could not find the `%@` command. Install it and sign in once from Terminal." = "找不到 `%@` 命令。请先安装，并在终端里登录一次。";
+"Failed to start %@: %@" = "启动 %@ 失败：%@";
+"Claude returned an error" = "Claude 返回了错误";
+"Edit" = "编辑";
+"Search" = "搜索";
+"Codex run failed" = "Codex 运行失败";
+"Stopped" = "已停止";
+"Process exited with code %d" = "进程退出，代码 %d";

@@ -10,16 +10,16 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     var images: [URL] = []
 }
 
-/// 一次对话。Claude 和 Codex 各自的会话 id 都挂在同一个对话下。
+/// One conversation. Claude and Codex each keep their own CLI session id under it.
 struct Conversation: Identifiable, Codable {
     var id = UUID()
-    var title = "新对话"
+    var title = ""
     var updatedAt = Date()
     var messages: [ChatMessage] = []
-    var sessionIDs: [String: String] = [:]  // BackendKind.rawValue -> CLI 会话 id
+    var sessionIDs: [String: String] = [:]  // BackendKind.rawValue -> CLI session id
 }
 
-/// 每个对话存成一个 JSON：~/Library/Application Support/FloatChat/conversations/<id>.json
+/// One JSON file per conversation in ~/Library/Application Support/FloatChat/conversations/
 enum HistoryStore {
     static let dir: URL = {
         let d = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -87,12 +87,12 @@ final class ChatModel: ObservableObject {
     var setPinned: (Bool) -> Void = { _ in }
 
     private var runner: CLIRunner?
-    // 当前对话里每个后端各自的会话 id，用于多轮对话 (--resume)
+    // Per-backend CLI session ids for the current conversation (--resume)
     private var sessionIDs: [BackendKind: String] = [:]
     private var settingsSink: AnyCancellable?
 
     init() {
-        // 设置里的变化需要刷新界面
+        // Re-render when settings change
         settingsSink = settings.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
     }
 
@@ -109,11 +109,11 @@ final class ChatModel: ObservableObject {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isRunning, !text.isEmpty || !pendingImages.isEmpty else { return }
         let images = pendingImages
-        var prompt = text.isEmpty ? "请看这张图片。" : text
+        var prompt = text.isEmpty ? "Please look at the attached image." : text
         let backend = settings.backend
-        // 对话中途换了后端：新后端没有上下文，把之前的聊天记录带过去
+        // Switched backends mid-conversation: hand the new one the transcript so far
         if sessionIDs[backend] == nil, let transcript = transcript() {
-            prompt = "以下是本次对话之前的记录（可能来自另一个 AI 助手），供你参考：\n\n\(transcript)\n\n---\n用户的新消息：\n\(prompt)"
+            prompt = "Here is the conversation so far (possibly with another AI assistant), for context:\n\n\(transcript)\n\n---\nThe user's new message:\n\(prompt)"
         }
 
         messages.append(ChatMessage(role: .user, text: text, images: images))
@@ -172,12 +172,12 @@ final class ChatModel: ObservableObject {
         }
     }
 
-    /// 把当前对话写盘并刷新历史列表；空对话不保存。
-    /// touch=false 用于切换对话时，不改动排序时间。
+    /// Saves the current conversation and refreshes history; empty chats are skipped.
+    /// touch=false (when switching chats) keeps its place in the list.
     private func persist(touch: Bool = false) {
         guard messages.contains(where: { $0.role == .user }) else { return }
         let firstUser = messages.first { $0.role == .user }?.text ?? ""
-        let title = firstUser.isEmpty ? "图片" : String(firstUser.prefix(40))
+        let title = firstUser.isEmpty ? String(localized: "Image") : String(firstUser.prefix(40))
         let c = Conversation(
             id: currentID,
             title: title,
@@ -194,13 +194,13 @@ final class ChatModel: ObservableObject {
     private func transcript() -> String? {
         let lines = messages.compactMap { m -> String? in
             switch m.role {
-            case .user: return "用户：\(m.text)"
-            case .assistant: return "助手：\(m.text)"
+            case .user: return "User: \(m.text)"
+            case .assistant: return "Assistant: \(m.text)"
             default: return nil
             }
         }
         guard !lines.isEmpty else { return nil }
-        // 太长只保留最近的部分
+        // Keep only the most recent part if it is long
         return String(lines.joined(separator: "\n\n").suffix(12000))
     }
 
@@ -236,10 +236,10 @@ final class ChatModel: ObservableObject {
         }
     }
 
-    /// 剪贴板里有图片就存成附件并返回 true（文字粘贴照常走文本框）。
+    /// Attaches an image from the clipboard and returns true; text pastes go to the text field as usual.
     func attachFromPasteboard() -> Bool {
         let pb = NSPasteboard.general
-        // Finder 里复制的图片文件
+        // Image files copied in Finder
         if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
            !urls.isEmpty {
             let before = pendingImages.count
@@ -263,7 +263,7 @@ final class ChatModel: ObservableObject {
         showPanel()
     }
 
-    /// 隐藏小窗 → 系统框选截图 → 作为附件加回来。
+    /// Hide the panel, run the interactive screenshot tool, attach the result.
     func captureScreen() {
         hidePanel()
         let url = Self.attachmentsDir.appendingPathComponent("shot-\(Int(Date().timeIntervalSince1970)).png")
