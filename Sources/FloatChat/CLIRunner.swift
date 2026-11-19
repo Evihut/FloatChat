@@ -9,7 +9,7 @@ enum AgentEvent {
     case done
 }
 
-/// Runs `claude -p` or `codex exec` as a child process and parses its JSONL output, calling back on the main thread.
+/// Runs `claude -p`, `codex exec` or `agy -p` (Antigravity CLI, for Gemini) as a child process and parses its JSONL output, calling back on the main thread.
 final class CLIRunner {
     struct Config {
         var backend: BackendKind
@@ -30,6 +30,8 @@ final class CLIRunner {
     private var receivedText = false
     private var finished = false
     private var stopped = false
+    private var seenToolSteps = Set<Int>()
+    private var lastTextStep: Int?
 
     init(config: Config, onEvent: @escaping (AgentEvent) -> Void) {
         self.config = config
@@ -37,7 +39,7 @@ final class CLIRunner {
     }
 
     func start() {
-        let name = config.backend == .claude ? "claude" : "codex"
+        let name = config.backend.command
         guard let exe = ShellEnv.which(name) else {
             emit(.error(String(localized: "Could not find the `\(name)` command. Install it and sign in once from Terminal.")))
             emit(.done)
@@ -45,7 +47,11 @@ final class CLIRunner {
         }
 
         process.executableURL = URL(fileURLWithPath: exe)
-        process.arguments = config.backend == .claude ? claudeArgs() : codexArgs()
+        switch config.backend {
+        case .claude: process.arguments = claudeArgs()
+        case .codex: process.arguments = codexArgs()
+        case .gemini: process.arguments = geminiArgs()
+        }
         process.environment = ShellEnv.environment
         var isDir: ObjCBool = false
         let cwd = FileManager.default.fileExists(atPath: config.workingDir, isDirectory: &isDir) && isDir.boolValue
@@ -83,8 +89,10 @@ final class CLIRunner {
             emit(.done)
             return
         }
-        // Send the prompt on stdin so it never collides with variadic options
-        stdin.fileHandleForWriting.write(fullPrompt().data(using: .utf8)!)
+        // Send the prompt on stdin so it never collides with variadic options (agy takes it as --prompt=)
+        if config.backend != .gemini {
+            stdin.fileHandleForWriting.write(fullPrompt().data(using: .utf8)!)
+        }
         try? stdin.fileHandleForWriting.close()
     }
 
@@ -96,10 +104,10 @@ final class CLIRunner {
     // MARK: - Arguments
 
     private func fullPrompt() -> String {
-        // Claude has no image flag; list the paths and let it open them with the Read tool
-        guard config.backend == .claude, !config.images.isEmpty else { return config.prompt }
+        // Claude and agy have no image flag; list the paths and let the agent open them with its file tool
+        guard config.backend != .codex, !config.images.isEmpty else { return config.prompt }
         let list = config.images.map { "- \($0.path)" }.joined(separator: "\n")
-        return config.prompt + "\n\nAttached images (open them with the Read tool):\n" + list
+        return config.prompt + "\n\nAttached images (open them with your file reading tool):\n" + list
     }
 
     private func claudeArgs() -> [String] {
@@ -127,6 +135,17 @@ final class CLIRunner {
         return a
     }
 
+    private func geminiArgs() -> [String] {
+        // "=" keeps a prompt that starts with "-" from being read as a flag
+        var a = ["--prompt=" + fullPrompt(), "--output-format", "stream-json"]
+        if let id = config.sessionID { a += ["--conversation", id] }
+        if !config.model.isEmpty { a += ["--model", config.model] }
+        a += ["--add-dir", config.attachmentsDir.path]
+        // agy's default mode still runs commands and edits headlessly, so read-only needs plan mode
+        a += config.fullAccess ? ["--dangerously-skip-permissions"] : ["--mode", "plan"]
+        return a
+    }
+
     // MARK: - Parsing
 
     private func consume(_ data: Data) {
@@ -135,7 +154,11 @@ final class CLIRunner {
             let line = buffer.subdata(in: buffer.startIndex..<nl)
             buffer.removeSubrange(buffer.startIndex...nl)
             guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
-            if config.backend == .claude { parseClaude(obj) } else { parseCodex(obj) }
+            switch config.backend {
+            case .claude: parseClaude(obj)
+            case .codex: parseCodex(obj)
+            case .gemini: parseGemini(obj)
+            }
         }
     }
 
@@ -204,6 +227,48 @@ final class CLIRunner {
         }
     }
 
+    private func parseGemini(_ o: [String: Any]) {
+        switch o["event"] as? String {
+        case "init":
+            if let id = o["conversation_id"] as? String, !id.isEmpty { emit(.session(id)) }
+        case "step_update":
+            let s = o["step_update"] as? [String: Any] ?? [:]
+            let step = s["step_index"] as? Int ?? -1
+            switch s["step_type"] as? String {
+            case "agent_response":
+                guard let t = s["text_delta"] as? String, !t.isEmpty else { return }
+                // a new response step after earlier text starts a new paragraph
+                if let last = lastTextStep, last != step { emit(.textDelta("\n\n")) }
+                lastTextStep = step
+                receivedText = true
+                emit(.textDelta(t))
+            case "tool":
+                guard !seenToolSteps.contains(step), let name = s["tool_name"] as? String else { return }
+                seenToolSteps.insert(step)
+                let params = (s["tool_info"] as? [String: Any])?["parameters"] as? [String: Any] ?? [:]
+                // plan mode keeps its own notes under ~/.gemini; that's bookkeeping, not the user's files
+                if let path = params["Path"] as? String, path.contains("/.gemini/antigravity-cli/") { return }
+                lastTextStep = nil
+                emit(.tool(Self.describeTool(name, params)))
+            default:
+                break
+            }
+        case "result":
+            guard let r = o["result"] as? [String: Any] else { return }
+            if let id = r["conversation_id"] as? String, !id.isEmpty { emit(.session(id)) }
+            let response = r["response"] as? String ?? ""
+            if let status = r["status"] as? String, status != "SUCCESS" {
+                let err = r["error"] as? String ?? ""
+                emit(.error(err.isEmpty ? String(localized: "Gemini run ended with status \(status)") : err))
+            } else if !receivedText, !response.isEmpty {
+                emit(.text(response))
+            }
+            receivedText = true
+        default:
+            break
+        }
+    }
+
     private func finish(status: Int32) {
         guard !finished else { return }
         finished = true
@@ -219,9 +284,12 @@ final class CLIRunner {
     // MARK: - Helpers
 
     static func describeTool(_ name: String, _ input: [String: Any]) -> String {
-        let keys = ["command", "file_path", "path", "pattern", "query", "url", "description"]
+        // agy uses keys like "CommandLine" and "Path"; compare without case or underscores
+        let normalized = Dictionary(input.map { ($0.key.lowercased().replacingOccurrences(of: "_", with: ""), $0.value) },
+                                    uniquingKeysWith: { a, _ in a })
+        let keys = ["command", "commandline", "filepath", "path", "absolutepath", "pattern", "query", "url", "description"]
         for k in keys {
-            if let v = input[k] as? String { return "\(name): \(k == "file_path" || k == "path" ? abbreviated(v) : v)" }
+            if let v = normalized[k] as? String { return "\(name): \(k.hasSuffix("path") ? abbreviated(v) : v)" }
         }
         return name
     }

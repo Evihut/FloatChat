@@ -46,9 +46,25 @@ enum HistoryStore {
 }
 
 enum BackendKind: String, CaseIterable, Identifiable {
-    case claude, codex
+    case claude, codex, gemini
     var id: String { rawValue }
-    var title: String { self == .claude ? "Claude Code" : "Codex" }
+
+    var title: String {
+        switch self {
+        case .claude: "Claude Code"
+        case .codex: "Codex"
+        case .gemini: "Gemini"
+        }
+    }
+
+    /// Gemini runs through Google's Antigravity CLI, which replaced Gemini CLI for personal accounts.
+    var command: String {
+        switch self {
+        case .claude: "claude"
+        case .codex: "codex"
+        case .gemini: "agy"
+        }
+    }
 }
 
 final class AppSettings: ObservableObject {
@@ -59,6 +75,7 @@ final class AppSettings: ObservableObject {
     @Published var workingDir: String { didSet { d.set(workingDir, forKey: "workingDir") } }
     @Published var claudeModel: String { didSet { d.set(claudeModel, forKey: "claudeModel") } }
     @Published var codexModel: String { didSet { d.set(codexModel, forKey: "codexModel") } }
+    @Published var geminiModel: String { didSet { d.set(geminiModel, forKey: "geminiModel") } }
     @Published var alwaysOnTop: Bool { didSet { d.set(alwaysOnTop, forKey: "alwaysOnTop") } }
 
     init() {
@@ -67,7 +84,16 @@ final class AppSettings: ObservableObject {
         workingDir = d.string(forKey: "workingDir") ?? FileManager.default.homeDirectoryForCurrentUser.path
         claudeModel = d.string(forKey: "claudeModel") ?? ""
         codexModel = d.string(forKey: "codexModel") ?? ""
+        geminiModel = d.string(forKey: "geminiModel") ?? ""
         alwaysOnTop = d.object(forKey: "alwaysOnTop") as? Bool ?? true
+    }
+
+    func model(for backend: BackendKind) -> String {
+        switch backend {
+        case .claude: claudeModel
+        case .codex: codexModel
+        case .gemini: geminiModel
+        }
     }
 }
 
@@ -127,7 +153,7 @@ final class ChatModel: ObservableObject {
             sessionID: sessionIDs[backend],
             workingDir: settings.workingDir,
             fullAccess: settings.fullAccess,
-            model: backend == .claude ? settings.claudeModel : settings.codexModel,
+            model: settings.model(for: backend),
             attachmentsDir: Self.attachmentsDir
         )
         let runner = CLIRunner(config: config) { [weak self] event in

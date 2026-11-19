@@ -54,3 +54,7 @@
 "Codex run failed" = "Codex 运行失败";
 "Stopped" = "已停止";
 "Process exited with code %d" = "进程退出，代码 %d";
+
+/* Gemini */
+"Gemini model (blank = default)" = "Gemini 模型（留空为默认）";
+"Gemini run ended with status %@" = "Gemini 运行结束，状态：%@";

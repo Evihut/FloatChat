@@ -4,7 +4,7 @@
 
 # FloatChat
 
-**Claude Code and Codex, one keystroke away.**
+**Claude Code, Codex and Gemini, one keystroke away.**
 
 A tiny, native macOS window that floats above everything and talks to the AI agents you already pay for.
 
@@ -23,9 +23,9 @@ A tiny, native macOS window that floats above everything and talks to the AI age
 
 ## Why FloatChat
 
-Agent CLIs like **Claude Code** and **Codex** can read your files, run commands and look at images, but they live in a terminal tab. Chat apps float nicely, but the model behind them can't touch your machine.
+Agent CLIs like **Claude Code**, **Codex** and **Gemini** can read your files, run commands and look at images, but they live in a terminal tab. Chat apps float nicely, but the model behind them can't touch your machine.
 
-FloatChat puts the agent in a window you can summon from anywhere with `⌥Space`, without leaving the app you're in. No API keys, no extra subscription: it drives the `claude` and `codex` commands you've already signed in to.
+FloatChat puts the agent in a window you can summon from anywhere with `⌥Space`, without leaving the app you're in. No API keys, no extra subscription: it drives the `claude`, `codex` and `agy` commands you've already signed in to.
 
 ## Features
 
@@ -33,7 +33,7 @@ FloatChat puts the agent in a window you can summon from anywhere with `⌥Space
 | --- | --- |
 | **⌥Space from anywhere** | Shows over every Space and full-screen app. Clicking it never steals focus from the app you're working in. |
 | **Real agent tools** | Reads files, runs commands, searches the web and views images, all through the CLI's own toolset. |
-| **Two backends, one thread** | Switch between Claude Code and Codex mid-conversation. FloatChat hands the new backend the transcript so far. |
+| **Three agents, one thread** | Switch between Claude Code, Codex and Gemini mid-conversation. FloatChat hands the new agent the transcript so far. |
 | **History that resumes** | Every chat is saved and searchable. Reopen one and the CLI session picks up where it left off. |
 | **Images in a second** | Paste with `⌘V`, drag a file in, or grab part of the screen with the built-in screenshot button. |
 | **Safe by default** | Starts read-only (read and search). Flip to **Full access** only when you want it to edit files or run commands. |
@@ -79,6 +79,12 @@ claude -p "hi"
 codex exec "hi"
 ```
 
+```bash
+agy -p "hi"
+```
+
+> **Gemini** runs through Google's [Antigravity CLI](https://antigravity.google/docs/cli/reference) (`agy`). Since June 2026, personal Google accounts can no longer sign in to the old Gemini CLI, and Antigravity CLI is Google's replacement. Install it with the [official script](https://antigravity.google/docs/getting-started), then run `agy` once to sign in.
+
 Sign-in, models, MCP servers and other settings all come from the CLI's own configuration.
 
 ## Using it
@@ -97,7 +103,7 @@ Settings let you pick the working folder the CLI runs in and override the model 
 
 ```mermaid
 flowchart LR
-    A["FloatChat window"] -- "prompt on stdin" --> B["claude -p<br/>or codex exec"]
+    A["FloatChat window"] -- "prompt on stdin" --> B["claude -p · codex exec<br/>· agy -p"]
     B -- "JSON event stream" --> A
     B <--> C["Files, shell,<br/>web, images"]
 ```
@@ -106,6 +112,7 @@ Each message starts the CLI as a child process and streams its JSON events into 
 
 - **Claude Code:** `claude -p --output-format stream-json --include-partial-messages [--resume <id>]`
 - **Codex:** `codex exec [resume <id>] --json -`
+- **Gemini:** `agy --prompt=… --output-format stream-json [--conversation <id>]` (read-only uses `--mode plan`)
 
 Conversations are stored as JSON in `~/Library/Application Support/FloatChat/conversations/`. Nothing leaves your Mac except what the CLIs themselves send.
 

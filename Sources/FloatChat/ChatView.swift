@@ -411,6 +411,7 @@ struct SettingsView: View {
             }
             TextField("Claude model (blank = default)", text: $settings.claudeModel)
             TextField("Codex model (blank = default)", text: $settings.codexModel)
+            TextField("Gemini model (blank = default)", text: $settings.geminiModel)
             Toggle("Full access (edit files and run commands)", isOn: $settings.fullAccess)
             Text("Hotkey: \(hotKeyLabel) · Window position is remembered")
                 .font(.caption)

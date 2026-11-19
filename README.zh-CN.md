@@ -4,7 +4,7 @@
 
 # FloatChat
 
-**一键呼出 Claude Code 和 Codex。**
+**一键呼出 Claude Code、Codex 和 Gemini。**
 
 一个原生的 macOS 悬浮小窗，浮在所有窗口之上，背后就是你已经在用的 AI agent。
 
@@ -23,9 +23,9 @@
 
 ## 为什么做 FloatChat
 
-**Claude Code**、**Codex** 这类 agent 命令行能读文件、跑命令、看图片，但它们只能待在终端里。聊天 App 的小窗用起来很顺手，可背后的模型碰不到你的电脑。
+**Claude Code**、**Codex**、**Gemini** 这类 agent 命令行能读文件、跑命令、看图片，但它们只能待在终端里。聊天 App 的小窗用起来很顺手，可背后的模型碰不到你的电脑。
 
-FloatChat 把 agent 装进一个随时能呼出的小窗：在任何 App 里按 `⌥Space` 就能问，不用切走当前窗口。不需要 API Key，也不用另外付费，它直接调用你已经登录好的 `claude` 和 `codex` 命令。
+FloatChat 把 agent 装进一个随时能呼出的小窗：在任何 App 里按 `⌥Space` 就能问，不用切走当前窗口。不需要 API Key，也不用另外付费，它直接调用你已经登录好的 `claude`、`codex` 和 `agy` 命令。
 
 ## 功能
 
@@ -33,7 +33,7 @@ FloatChat 把 agent 装进一个随时能呼出的小窗：在任何 App 里按 
 | --- | --- |
 | **⌥Space 随时呼出** | 在所有桌面和全屏 App 上都能显示，点它也不会让你正在用的 App 失去焦点。 |
 | **真正的 agent 工具** | 读文件、跑命令、联网搜索、看图片，用的都是 CLI 自带的工具。 |
-| **两个后端，一个对话** | 对话中途可以在 Claude Code 和 Codex 之间切换，之前的聊天记录会自动交给新后端。 |
+| **三个 agent，一个对话** | 对话中途可以在 Claude Code、Codex 和 Gemini 之间切换，之前的聊天记录会自动交给新的 agent。 |
 | **能接着聊的历史** | 每个对话都会保存，可以搜索。重新打开后，CLI 的会话也会接上。 |
 | **秒传图片** | `⌘V` 粘贴、拖入文件，或者用自带的截图按钮框选屏幕。 |
 | **默认安全** | 默认只读，只能读文件和搜索。只有打开"完全权限"，它才能改文件、执行命令。 |
@@ -79,6 +79,12 @@ claude -p "hi"
 codex exec "hi"
 ```
 
+```bash
+agy -p "hi"
+```
+
+> **Gemini** 通过 Google 的 [Antigravity CLI](https://antigravity.google/docs/cli/reference)（`agy`）接入。从 2026 年 6 月起，个人 Google 账号已经不能再登录旧的 Gemini CLI，Antigravity CLI 是 Google 官方的替代品。用[官方安装脚本](https://antigravity.google/docs/getting-started)安装后，运行一次 `agy` 登录即可。
+
 登录、模型、MCP 服务器等设置，都沿用 CLI 自己的配置。
 
 ## 使用方法
@@ -97,7 +103,7 @@ codex exec "hi"
 
 ```mermaid
 flowchart LR
-    A["FloatChat 小窗"] -- "通过 stdin 发送问题" --> B["claude -p<br/>或 codex exec"]
+    A["FloatChat 小窗"] -- "通过 stdin 发送问题" --> B["claude -p · codex exec<br/>· agy -p"]
     B -- "JSON 事件流" --> A
     B <--> C["文件、命令行、<br/>网络、图片"]
 ```
@@ -106,6 +112,7 @@ flowchart LR
 
 - **Claude Code：** `claude -p --output-format stream-json --include-partial-messages [--resume <id>]`
 - **Codex：** `codex exec [resume <id>] --json -`
+- **Gemini：** `agy --prompt=… --output-format stream-json [--conversation <id>]`（只读模式使用 `--mode plan`）
 
 对话以 JSON 格式保存在 `~/Library/Application Support/FloatChat/conversations/`。除了 CLI 本身会发送的内容，没有任何数据离开你的 Mac。
 
