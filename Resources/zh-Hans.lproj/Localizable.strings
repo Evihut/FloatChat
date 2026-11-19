@@ -8,7 +8,7 @@
 
 /* Welcome */
 "Ask anything" = "问点什么吧";
-"Explain this screenshot" = "解释一下这张截图";
+"Explain the window I'm using" = "解释一下我正在用的窗口";
 "What's in this folder?" = "这个文件夹里有什么？";
 "Why is my build failing?" = "为什么我的项目编译失败？";
 "%@ to show or hide · Esc to hide · ⌘V pastes images" = "%@ 呼出或隐藏 · Esc 隐藏 · ⌘V 粘贴图片";
@@ -16,7 +16,6 @@
 /* Input bar */
 "Ask %@…" = "询问 %@…";
 "Add images" = "添加图片";
-"Take a screenshot" = "截图";
 "Full access" = "完全权限";
 "Read-only" = "只读";
 "Read-only: read files and search. Full access: edit files and run commands." = "只读：只能读文件和搜索。完全权限：可以改文件、执行命令。";
@@ -58,3 +57,15 @@
 /* Gemini */
 "Gemini model (blank = default)" = "Gemini 模型（留空为默认）";
 "Gemini run ended with status %@" = "Gemini 运行结束，状态：%@";
+
+/* Capture */
+"Windows" = "窗口";
+"Screens" = "显示器";
+"Select an area…" = "框选区域…";
+"Select an area to capture" = "框选截图";
+"Capture the window you're using. Use the arrow for other windows or a whole screen." = "截取你正在用的窗口。点小箭头可以选其他窗口或整个显示器。";
+"Display %lld" = "显示器 %lld";
+"No window to capture." = "没有可以截取的窗口。";
+"Couldn't capture %@. The window may have closed." = "无法截取 %@，窗口可能已经关闭。";
+"Couldn't capture the screen." = "无法截取屏幕。";
+"FloatChat needs Screen Recording permission to take screenshots. Turn it on in System Settings → Privacy & Security → Screen Recording, then quit and reopen FloatChat." = "截图需要录屏权限。请在 系统设置 → 隐私与安全性 → 录屏 里打开 FloatChat，然后退出并重新打开 FloatChat。";

@@ -98,7 +98,7 @@ struct ChatView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 6) {
-                suggestion(String(localized: "Explain this screenshot"), symbol: "camera.viewfinder") { model.captureScreen() }
+                suggestion(String(localized: "Explain the window I'm using"), symbol: "macwindow") { model.captureCurrentWindow() }
                 suggestion(String(localized: "What's in this folder?"), symbol: "folder")
                 suggestion(String(localized: "Why is my build failing?"), symbol: "hammer")
             }
@@ -170,7 +170,8 @@ struct ChatView: View {
 
             HStack(spacing: 6) {
                 iconButton("plus", help: "Add images") { model.pickImages() }
-                iconButton("camera.viewfinder", help: "Take a screenshot") { model.captureScreen() }
+                captureMenu
+                iconButton("camera.viewfinder", help: "Select an area to capture") { model.captureScreen() }
                 Toggle(isOn: $settings.fullAccess) {
                     Text(settings.fullAccess ? LocalizedStringKey("Full access") : "Read-only")
                         .font(.callout)
@@ -203,6 +204,47 @@ struct ChatView: View {
         .background(RoundedRectangle(cornerRadius: 14).fill(.background.opacity(0.6)))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(.separator))
         .padding(10)
+    }
+
+    /// Click: capture the window you were just using. Arrow: pick any window or a whole display.
+    private var captureMenu: some View {
+        Menu {
+            Section("Windows") {
+                ForEach(model.capturableWindows) { w in
+                    Button { model.captureWindow(w) } label: {
+                        if let icon = w.icon {
+                            Label { Text(verbatim: w.label) } icon: { Image(nsImage: icon) }
+                        } else {
+                            Text(verbatim: w.label)
+                        }
+                    }
+                }
+            }
+            Section("Screens") {
+                ForEach(model.capturableDisplays) { d in
+                    Button { model.captureDisplay(d) } label: {
+                        Label { Text(verbatim: d.name) } icon: { Image(systemName: "display") }
+                    }
+                }
+            }
+            Divider()
+            Button { model.captureScreen() } label: {
+                Label("Select an area…", systemImage: "camera.viewfinder")
+            }
+        } label: {
+            Image(systemName: "macwindow")
+                .font(.system(size: 17, weight: .medium))
+        } primaryAction: {
+            model.captureCurrentWindow()
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.visible)
+        .fixedSize()
+        .frame(height: 32)
+        .padding(.horizontal, 4)
+        .foregroundStyle(.secondary)
+        .help("Capture the window you're using. Use the arrow for other windows or a whole screen.")
+        .onHover { if $0 { model.refreshWindows() } }
     }
 
     private func iconButton(_ symbol: String, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {

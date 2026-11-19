@@ -35,7 +35,7 @@ FloatChat puts the agent in a window you can summon from anywhere with `⌥Space
 | **Real agent tools** | Reads files, runs commands, searches the web and views images, all through the CLI's own toolset. |
 | **Three agents, one thread** | Switch between Claude Code, Codex and Gemini mid-conversation. FloatChat hands the new agent the transcript so far. |
 | **History that resumes** | Every chat is saved and searchable. Reopen one and the CLI session picks up where it left off. |
-| **Images in a second** | Paste with `⌘V`, drag a file in, or grab part of the screen with the built-in screenshot button. |
+| **One-click screenshots** | Capture the window you're using (say, a Chrome tab) with one click, no selecting. Pick any other window or a whole display from its menu, or still drag out an area. `⌘V` and drag and drop work too. |
 | **Safe by default** | Starts read-only (read and search). Flip to **Full access** only when you want it to edit files or run commands. |
 | **Tiny and native** | Pure Swift and SwiftUI. About 3 MB, universal (Apple Silicon and Intel), no Electron, no Dock icon. |
 | **English and 简体中文** | The interface follows your Mac's language. |
@@ -93,11 +93,13 @@ Sign-in, models, MCP servers and other settings all come from the CLI's own conf
 | --- | --- |
 | Show or hide | `⌥Space` (falls back to `⌃⌥Space` if another app owns it; the menu bar icon shows which) |
 | Send / hide | `Enter` / `Esc` |
-| Attach images | `⌘V`, drag and drop, the `+` button, or the screenshot button |
+| Screenshot the current window | The window button (its arrow lists other windows and whole displays) |
+| Screenshot an area | The viewfinder button |
+| Attach images | `⌘V`, drag and drop, or the `+` button |
 | Switch backend | The menu at the top of the window |
 | History, new chat, keep on top, settings | The icons at the top right |
 
-Settings let you pick the working folder the CLI runs in and override the model for each backend. The first screenshot asks for Screen Recording permission in **System Settings → Privacy & Security**.
+Settings let you pick the working folder the CLI runs in and override the model for each backend. Screenshots need Screen Recording permission: the first one adds FloatChat to **System Settings → Privacy & Security → Screen Recording**, where you switch it on and reopen FloatChat.
 
 ## How it works
 

@@ -106,8 +106,11 @@ final class ChatModel: ObservableObject {
     @Published var hotKeyLabel = ""
     @Published var history: [Conversation] = HistoryStore.loadAll()
     @Published private(set) var currentID = UUID()
+    @Published var capturableWindows: [CapturableWindow] = []
+    @Published var capturableDisplays: [CapturableDisplay] = []
 
     let settings = AppSettings()
+    let windowCapture = WindowCapture()
     var hidePanel: () -> Void = {}
     var showPanel: () -> Void = {}
     var setPinned: (Bool) -> Void = { _ in }
@@ -291,6 +294,7 @@ final class ChatModel: ObservableObject {
 
     /// Hide the panel, run the interactive screenshot tool, attach the result.
     func captureScreen() {
+        guard hasScreenAccess() else { return }
         hidePanel()
         let url = Self.attachmentsDir.appendingPathComponent("shot-\(Int(Date().timeIntervalSince1970)).png")
         DispatchQueue.global().asyncAfter(deadline: .now() + 0.25) {
@@ -302,6 +306,63 @@ final class ChatModel: ObservableObject {
             DispatchQueue.main.async {
                 if FileManager.default.fileExists(atPath: url.path) { self.pendingImages.append(url) }
                 self.showPanel()
+            }
+        }
+    }
+
+    /// Screen Recording permission is needed for every kind of capture. The first request adds
+    /// FloatChat to System Settings and shows the system prompt; until it's on, explain where to turn it on.
+    private func hasScreenAccess() -> Bool {
+        if CGPreflightScreenCaptureAccess() { return true }
+        CGRequestScreenCaptureAccess()
+        messages.append(ChatMessage(role: .error, text: String(localized: "FloatChat needs Screen Recording permission to take screenshots. Turn it on in System Settings → Privacy & Security → Screen Recording, then quit and reopen FloatChat.")))
+        return false
+    }
+
+    func refreshWindows() {
+        capturableWindows = windowCapture.windows()
+        capturableDisplays = WindowCapture.displays()
+    }
+
+    /// Hides the panel so it isn't in the shot, captures the whole display, then comes back.
+    func captureDisplay(_ d: CapturableDisplay) {
+        guard hasScreenAccess() else { return }
+        hidePanel()
+        let url = Self.attachmentsDir.appendingPathComponent("screen-\(Int(Date().timeIntervalSince1970))-\(d.index).png")
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.25) {
+            let ok = WindowCapture.capture(d, to: url)
+            DispatchQueue.main.async {
+                if ok {
+                    self.pendingImages.append(url)
+                } else {
+                    self.messages.append(ChatMessage(role: .error, text: String(localized: "Couldn't capture the screen.")))
+                }
+                self.showPanel()
+            }
+        }
+    }
+
+    /// Attaches a screenshot of the window the user was just working in, with no selection step.
+    func captureCurrentWindow() {
+        guard let w = windowCapture.currentWindow() else {
+            messages.append(ChatMessage(role: .error, text: String(localized: "No window to capture.")))
+            return
+        }
+        captureWindow(w)
+    }
+
+    func captureWindow(_ w: CapturableWindow) {
+        guard hasScreenAccess() else { return }
+        let url = Self.attachmentsDir.appendingPathComponent("window-\(Int(Date().timeIntervalSince1970))-\(w.id).png")
+        DispatchQueue.global().async {
+            let ok = WindowCapture.capture(w, to: url)
+            DispatchQueue.main.async {
+                if ok {
+                    self.pendingImages.append(url)
+                } else {
+                    self.messages.append(ChatMessage(role: .error, text: String(localized: "Couldn't capture \(w.appName). The window may have closed.")))
+                }
+                self.focusInput &+= 1
             }
         }
     }
